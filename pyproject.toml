@@ -1,0 +1,59 @@
+[build-system]
+requires = ["setuptools>=65", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tnn"
+version = "1.0.0"
+description = "My faithful reproduction of Tversky Neural Networks of Tversky Neural Networks"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [
+    { name = "Akshath Mangudi", email = "akshathmangudi@gmail.com" }
+]
+keywords = ["deep-learning", "pytorch", "tversky", "neural-networks", "xai", "ml"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence"
+]
+
+dependencies = [
+    "torch>=2.0.0",
+    "torchvision>=0.15.0",
+    "transformers>=4.39.0",
+    "numpy",
+    "tqdm",
+    "scikit-learn"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "black",
+    "ruff",
+    "isort",
+    "mypy",
+    "jupyter"
+]
+viz = [
+    "matplotlib",
+    "seaborn"
+]
+xai = [
+    "captum",
+    "shap",
+    "lime"
+]
+bench = [
+    "wandb",
+    "tensorboard"
+]
+
+[project.urls]
+Homepage = "https://github.com/akshathmangudi/tnn"
+Repository = "https://github.com/akshathmangudi/tnn"
+Issues = "https://github.com/akshathmangudi/tnn/issues"
