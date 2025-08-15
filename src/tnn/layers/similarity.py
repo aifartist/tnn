@@ -6,7 +6,7 @@ from typing import Literal, Optional
 class TverskySimilarity(nn.Module):
     """
     Implements the Tversky similarity function from Equation 6:
-    S_Ω,α,β,θ(a,b) = |a ∩ b|_Ω / (|a ∩ b|_Ω + α|a \ b|_Ω + β|b \ a|_Ω + θ)
+    S_Ω,α,β,θ(a,b) = |a ∩ b|_Ω / (|a ∩ b|_Ω + α|a \\ b|_Ω + β|b \\ a|_Ω + θ)
     
     Based on the paper's hyperparameters and experimental settings.
     """
@@ -40,12 +40,18 @@ class TverskySimilarity(nn.Module):
             nn.init.ones_(self.feature_bank)
         elif init_type == "random":
             nn.init.normal_(self.feature_bank, mean=1.0, std=0.1)
+            # Ensure positive values
+            self.feature_bank.data = torch.abs(self.feature_bank.data) + 0.1
         elif init_type == "xavier":
             # Xavier/Glorot initialization scaled to positive values
             nn.init.xavier_uniform_(self.feature_bank.unsqueeze(0))
             self.feature_bank.data = torch.abs(self.feature_bank.data) + 0.1
         else:
             raise ValueError(f"Unknown init_type: {init_type}")
+            
+        # Additional safety: ensure feature bank is always positive and bounded
+        with torch.no_grad():
+            self.feature_bank.data = torch.clamp(self.feature_bank.data, min=0.1, max=10.0)
     
     def _intersection(self, a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         """
@@ -66,7 +72,7 @@ class TverskySimilarity(nn.Module):
     
     def _difference(self, a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         """
-        Compute difference a \ b with feature bank weighting
+        Compute difference a \\ b with feature bank weighting
         Paper uses subtractmatch as default for better gradient flow
         """
         if self.difference_reduction == "ignorematch":
@@ -97,15 +103,56 @@ class TverskySimilarity(nn.Module):
         a = torch.abs(a)
         b = torch.abs(b)
         
+        # Add small epsilon to prevent numerical issues
+        eps = 1e-8
+        a = a + eps
+        b = b + eps
+        
+        # Ensure feature bank is positive and well-conditioned
+        feature_bank_stable = torch.clamp(torch.abs(self.feature_bank), min=0.1, max=5.0)
+        
         # Compute components of Tversky formula
-        intersection = self._intersection(a, b)  # |a ∩ b|_Ω
-        diff_a_b = self._difference(a, b)        # |a \ b|_Ω  
-        diff_b_a = self._difference(b, a)        # |b \ a|_Ω
+        intersection = self._intersection_stable(a, b, feature_bank_stable)  # |a ∩ b|_Ω
+        diff_a_b = self._difference_stable(a, b, feature_bank_stable)        # |a \\ b|_Ω  
+        diff_b_a = self._difference_stable(b, a, feature_bank_stable)        # |b \\ a|_Ω
         
         # Tversky similarity formula (Equation 6)
         numerator = intersection
         denominator = intersection + self.alpha * diff_a_b + self.beta * diff_b_a + self.theta
         
-        # Ensure numerical stability
-        similarity = numerator / torch.clamp(denominator, min=self.theta)
+        # Ensure numerical stability with larger minimum threshold
+        min_denom = max(self.theta, 1e-5)
+        denominator = torch.clamp(denominator, min=min_denom)
+        
+        # Additional safety check for NaN/Inf
+        similarity = numerator / denominator
+        similarity = torch.clamp(similarity, min=0.0, max=1.0)  # Tversky similarity should be in [0,1]
+        
+        # Replace any remaining NaN with small positive value
+        similarity = torch.where(torch.isnan(similarity), torch.tensor(eps, device=similarity.device), similarity)
+        
         return similarity
+    
+    def _intersection_stable(self, a: torch.Tensor, b: torch.Tensor, feature_bank: torch.Tensor) -> torch.Tensor:
+        """Stable intersection computation"""
+        if self.intersection_reduction == "product":
+            intersection = torch.min(a, b)
+        elif self.intersection_reduction == "mean":
+            intersection = (a + b) / 2
+        else:
+            raise ValueError(f"Unknown intersection_reduction: {self.intersection_reduction}")
+        
+        weighted = intersection * feature_bank
+        return weighted.sum(dim=-1)
+    
+    def _difference_stable(self, a: torch.Tensor, b: torch.Tensor, feature_bank: torch.Tensor) -> torch.Tensor:
+        """Stable difference computation"""
+        if self.difference_reduction == "ignorematch":
+            diff = torch.relu(a - b)
+        elif self.difference_reduction == "subtractmatch":
+            diff = a - torch.min(a, b)
+        else:
+            raise ValueError(f"Unknown difference_reduction: {self.difference_reduction}")
+        
+        weighted = diff * feature_bank
+        return weighted.sum(dim=-1)

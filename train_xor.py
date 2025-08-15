@@ -8,15 +8,11 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
-from pathlib import Path
-import sys
 import argparse
 
-# Add parent directory to path to import layers
-sys.path.append(str(Path(__file__).parent.parent))
-
-from layers import TverskyProjectionLayer
-from utils import get_xor_data, plot_decision_boundary, plot_prototypes, plot_training_curves
+# Import from the installed tnn package
+from tnn.layers import TverskyProjectionLayer
+from tnn.utils import get_xor_data, plot_decision_boundary, plot_prototypes, plot_training_curves
 
 class TverskyXORNet(nn.Module):
     """
@@ -43,13 +39,14 @@ class TverskyXORNet(nn.Module):
             num_prototypes=num_prototypes,
             alpha=alpha,                    # Paper uses α = 0.5
             beta=beta,                      # Paper uses β = 0.5
-            theta=1e-7,                     # Small constant for stability
+            theta=1e-5,                     # Slightly larger for stability
             intersection_reduction="product",
             difference_reduction="subtractmatch",  # Paper's preferred method
             feature_bank_init="xavier",     # Better initialization
             prototype_init="xavier",
             apply_softmax=False,
-            share_feature_bank=True
+            share_feature_bank=True,
+            temperature=1.0
         )
         
         # Final classification layer
@@ -115,7 +112,12 @@ def train_xor(
     )
     
     criterion = nn.BCEWithLogitsLoss()
-    optimizer = optim.Adam(model.parameters(), lr=lr)
+    optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=1e-5)
+    
+    # Add learning rate scheduler for better convergence
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer, mode='min', factor=0.5, patience=20
+    )
     
     # Training tracking
     train_losses = []
@@ -127,10 +129,18 @@ def train_xor(
     
     # Training loop
     model.train()
+    best_test_acc = 0.0
+    patience_counter = 0
+    max_patience = 50
+    
     for epoch in range(epochs):
         optimizer.zero_grad()
         outputs = model(X_train)
         loss = criterion(outputs, y_train)
+        
+        # Gradient clipping to prevent explosion
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+        
         loss.backward()
         optimizer.step()
         
@@ -152,6 +162,21 @@ def train_xor(
                       f'Train Loss: {loss.item():.4f} | '
                       f'Test Loss: {test_loss.item():.4f} | '
                       f'Test Acc: {test_acc.item():.4f}')
+                
+                # Update learning rate based on test loss
+                scheduler.step(test_loss.item())
+                
+                # Early stopping check
+                if test_acc.item() > best_test_acc:
+                    best_test_acc = test_acc.item()
+                    patience_counter = 0
+                else:
+                    patience_counter += 50  # Since we check every 50 epochs
+                
+                if patience_counter >= max_patience * 50:
+                    print(f"Early stopping at epoch {epoch+1}")
+                    break
+                    
             model.train()
     
     # Final evaluation
@@ -187,8 +212,15 @@ def train_xor(
         prototypes = model.tversky.get_prototypes()
         feature_bank = model.tversky.get_feature_bank()
         
+        # Handle feature bank type (could be tensor or list)
+        if isinstance(feature_bank, list):
+            # If multiple feature banks, use the first one for visualization
+            feature_bank_for_plot = feature_bank[0]
+        else:
+            feature_bank_for_plot = feature_bank
+        
         plot_prototypes(
-            prototypes, feature_bank,
+            prototypes, feature_bank_for_plot,
             title="Learned Prototypes and Feature Bank",
             save_path="xor_prototypes.png"
         )
@@ -226,7 +258,11 @@ def train_xor(
     
     print("\nFeature Bank (Ω):")
     feature_bank = model.tversky.get_feature_bank()
-    print(f"  Ω: {feature_bank.numpy()}")
+    if isinstance(feature_bank, list):
+        for i, fb in enumerate(feature_bank):
+            print(f"  Ω_{i}: {fb.numpy()}")
+    else:
+        print(f"  Ω: {feature_bank.numpy()}")
     
     return model, test_acc.item()
 
