@@ -77,9 +77,13 @@ def plot_decision_boundary(
     if y.dim() > 1:
         y = y.squeeze()
     
+    # Move data to CPU for mesh creation (numpy operations)
+    X_cpu = X.cpu()
+    y_cpu = y.cpu()
+    
     # Create mesh
-    x_min, x_max = X[:, 0].min() - 0.5, X[:, 0].max() + 0.5
-    y_min, y_max = X[:, 1].min() - 0.5, X[:, 1].max() + 0.5
+    x_min, x_max = X_cpu[:, 0].min() - 0.5, X_cpu[:, 0].max() + 0.5
+    y_min, y_max = X_cpu[:, 1].min() - 0.5, X_cpu[:, 1].max() + 0.5
     
     xx, yy = np.meshgrid(
         np.linspace(x_min, x_max, resolution),
@@ -110,7 +114,7 @@ def plot_decision_boundary(
     plt.colorbar(contour, label='Prediction Probability')
     
     # Plot data points
-    X_np, y_np = X.cpu().numpy(), y.cpu().numpy()
+    X_np, y_np = X_cpu.numpy(), y_cpu.numpy()
     unique_labels = np.unique(y_np)
     colors = ['blue', 'red', 'green', 'purple', 'orange']
     markers = ['o', 's', '^', 'D', 'v']

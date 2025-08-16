@@ -260,7 +260,7 @@ We welcome contributions! Areas where help is needed:
 - [ ] Include GPT-2 implementation and benchmarks. 
 - [ ] Run ResNet18 benchmarks on NABirds Dataset. 
 - [ ] Add benchmarks for different datasets for different weight distributions. 
-- [ ] Unify training configuration instead of keeping several training files for different models. 
+- [X] Unify training configuration instead of keeping several training files for different models. 
 - [ ] Include type checking and other software development process standards to maintain robustness. 
 
 ## 📝 Citation

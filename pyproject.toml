@@ -3,8 +3,8 @@ requires = ["setuptools>=65", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "tnn"
-version = "1.0.0"
+name = "tversky-nn"
+version = "1.0.1"
 description = "My faithful reproduction of Tversky Neural Networks (TNNs)"
 readme = "README.md"
 license = { text = "MIT" }
