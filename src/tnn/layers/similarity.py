@@ -58,13 +58,7 @@ class TverskySimilarity(nn.Module):
         Compute intersection a ∩ b with feature bank weighting
         Following the paper's definition of set intersection in feature space
         """
-        if self.intersection_reduction == "product":
-            intersection = a * b
-        elif self.intersection_reduction == "mean":
-            intersection = (a + b) / 2
-        else:
-            raise ValueError(f"Unknown intersection_reduction: {self.intersection_reduction}")
-        
+        intersection = TverskySimilarity.apply_intersection_reduction(self.intersection_reduction, a, b)
         # Apply feature bank weighting: |·|_Ω (Equation 6)
         weighted = intersection * self.feature_bank
         return weighted.sum(dim=-1)  # Sum over feature dimension
@@ -134,13 +128,7 @@ class TverskySimilarity(nn.Module):
     
     def _intersection_stable(self, a: torch.Tensor, b: torch.Tensor, feature_bank: torch.Tensor) -> torch.Tensor:
         """Stable intersection computation"""
-        if self.intersection_reduction == "product":
-            intersection = a * b
-        elif self.intersection_reduction == "mean":
-            intersection = (a + b) / 2
-        else:
-            raise ValueError(f"Unknown intersection_reduction: {self.intersection_reduction}")
-        
+        intersection = TverskySimilarity.apply_intersection_reduction(self.intersection_reduction, a, b)
         weighted = intersection * feature_bank
         return weighted.sum(dim=-1)
     
@@ -155,3 +143,15 @@ class TverskySimilarity(nn.Module):
         
         weighted = diff * feature_bank
         return weighted.sum(dim=-1)
+    
+    @staticmethod
+    def apply_intersection_reduction(intersection_reduction: Literal["product", "mean"], a: torch.Tensor, b: torch.Tensor):
+        match intersection_reduction:
+            case "product":
+                return a * b
+            case "mean":
+                return (a + b) / 2
+            case _:
+                raise ValueError(f"Unknown intersection_reduction: {intersection_reduction}")
+        
+
