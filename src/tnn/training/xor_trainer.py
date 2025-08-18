@@ -11,6 +11,7 @@ from tqdm import tqdm
 from ..layers import TverskyProjectionLayer
 from ..utils import get_xor_data, plot_decision_boundary, plot_prototypes, plot_training_curves
 from .config import UnifiedConfig
+from typing import Literal, Optional
 
 class TverskyXORNet(nn.Module):
     """
@@ -23,7 +24,8 @@ class TverskyXORNet(nn.Module):
         hidden_dim: int = 8,
         num_prototypes: int = 4,
         alpha: float = 0.5,
-        beta: float = 0.5
+        beta: float = 0.5,
+        intersection_reduction: Literal["product", "mean", "min", "max", "gmean", "softmin"] = "product",
     ):
         super().__init__()
         
@@ -38,7 +40,7 @@ class TverskyXORNet(nn.Module):
             alpha=alpha,                    # Paper uses α = 0.5
             beta=beta,                      # Paper uses β = 0.5
             theta=1e-5,                     # Slightly larger for stability
-            intersection_reduction="product",
+            intersection_reduction=intersection_reduction,
             difference_reduction="subtractmatch",  # Paper's preferred method
             feature_bank_init="xavier",     # Better initialization
             prototype_init="xavier",
@@ -96,7 +98,8 @@ class XORTrainer:
             hidden_dim=self.xor_config.hidden_dim,
             num_prototypes=self.config.tversky.num_prototypes,
             alpha=self.config.tversky.alpha,
-            beta=self.config.tversky.beta
+            beta=self.config.tversky.beta,
+            intersection_reduction=self.config.tversky.intersection_reduction
         )
         return model.to(self.device)
     

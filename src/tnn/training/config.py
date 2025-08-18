@@ -11,7 +11,7 @@ class TverskyConfig:
     alpha: float = 0.5
     beta: float = 0.5
     theta: float = 1e-7
-    intersection_reduction: Literal["product", "mean"] = "product"
+    intersection_reduction: Literal["product", "mean", "min", "max", "gmean", "softmin"] = "product"
     difference_reduction: Literal["ignorematch", "subtractmatch"] = "subtractmatch"
     feature_bank_init: Literal["ones", "random", "xavier"] = "xavier"
     prototype_init: Literal["random", "uniform", "normal", "xavier"] = "xavier"

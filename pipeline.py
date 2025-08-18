@@ -74,6 +74,8 @@ Examples:
                        help='Tversky alpha parameter')
     parser.add_argument('--beta', type=float, default=0.5,
                        help='Tversky beta parameter')
+    parser.add_argument('--intersection-reduction-function', default='product', choices=['product', 'mean', 'min', 'max', 'gmean', 'softmin'],
+                       help='Intersection reduction function')
     
     # XOR-specific parameters
     parser.add_argument('--xor-samples', type=int, default=1000,
@@ -144,7 +146,8 @@ def create_config_from_args(args) -> UnifiedConfig:
     tversky_config = TverskyConfig(
         num_prototypes=args.prototypes,
         alpha=args.alpha,
-        beta=args.beta
+        beta=args.beta,
+        intersection_reduction=args.intersection_reduction_function
     )
     
     # Create model-specific configurations
@@ -226,6 +229,7 @@ def run_single_experiment(config: UnifiedConfig) -> Dict[str, Any]:
     if config.tversky:
         print(f"Tversky prototypes: {config.tversky.num_prototypes}")
         print(f"Tversky alpha: {config.tversky.alpha}, beta: {config.tversky.beta}")
+        print(f"Tversky intersection reduction function: {config.tversky.intersection_reduction}")
     
     if config.model_type == 'resnet' and config.resnet_config:
         print(f"Architecture: {config.resnet_config.architecture}")
