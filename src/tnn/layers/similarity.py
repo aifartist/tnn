@@ -59,8 +59,7 @@ class TverskySimilarity(nn.Module):
         Following the paper's definition of set intersection in feature space
         """
         if self.intersection_reduction == "product":
-            # Element-wise minimum (standard set intersection)
-            intersection = torch.min(a, b)
+            intersection = a * b
         elif self.intersection_reduction == "mean":
             intersection = (a + b) / 2
         else:
@@ -136,7 +135,7 @@ class TverskySimilarity(nn.Module):
     def _intersection_stable(self, a: torch.Tensor, b: torch.Tensor, feature_bank: torch.Tensor) -> torch.Tensor:
         """Stable intersection computation"""
         if self.intersection_reduction == "product":
-            intersection = torch.min(a, b)
+            intersection = a * b
         elif self.intersection_reduction == "mean":
             intersection = (a + b) / 2
         else:
