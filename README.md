@@ -272,18 +272,18 @@ If you use this implementation in your research, please cite:
   author = {Akshath Mangudi},
   title = {TNN: A PyTorch Implementation of Tversky Neural Networks},
   year = {2025},
-  url = {https://github.com/your-username/tnn}
+  url = {https://github.com/akshathmangudi/tnn}
 }
 ```
 
 For the original Tversky Neural Networks paper, please cite:
 ```bibtex
 @article{tversky_neural_networks,
-  title={Tversky Neural Networks},
-  author={[Original Authors]},
-  journal={[Journal Name]},
-  year={[Year]},
-  url={[Paper URL]}
+  title={Tversky Neural Networks: Psychologically Plausible Deep Learning with Differentiable Tversky Similarity},
+  author={[Moussa Koulako Bala Doumbouya, Dan Jurafsky, Christopher D. Manning]},
+  journal={[NeurIPS]},
+  year={[2025]},
+  url={[https://arxiv.org/abs/2506.11035]}
 }
 ```
 

@@ -30,7 +30,8 @@ dependencies = [
     "scikit-learn",
     "pillow",
     "matplotlib",
-    "seaborn"
+    "seaborn", 
+    "deeplake<4"
 ]
 
 # Configure src layout
