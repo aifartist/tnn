@@ -20,7 +20,7 @@ class TverskyProjectionLayer(nn.Module):
         alpha: float = 0.5,    # Paper's default α
         beta: float = 0.5,     # Paper's default β  
         theta: float = 1e-7,   # Small constant for stability
-        intersection_reduction: Literal["product", "mean"] = "product",
+        intersection_reduction: Literal["product", "mean", "min", "max", "gmean", "softmin"] = "product",
         difference_reduction: Literal["ignorematch", "subtractmatch"] = "subtractmatch",
         feature_bank_init: Literal["ones", "random", "xavier"] = "xavier",
         prototype_init: Literal["random", "uniform", "normal", "xavier"] = "xavier",

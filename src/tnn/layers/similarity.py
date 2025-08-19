@@ -17,7 +17,7 @@ class TverskySimilarity(nn.Module):
         alpha: float = 0.5,  # Paper uses α = 0.5 for most experiments
         beta: float = 0.5,   # Paper uses β = 0.5 for most experiments  
         theta: float = 1e-7, # Small constant for numerical stability
-        intersection_reduction: Literal["product", "mean"] = "product",
+        intersection_reduction: Literal["product", "mean", "min", "max", "gmean", "softmin"] = "product",
         difference_reduction: Literal["ignorematch", "subtractmatch"] = "subtractmatch",  # Paper default
         feature_bank_init: Literal["ones", "random", "xavier"] = "xavier"  # Better initialization
     ):
@@ -58,14 +58,7 @@ class TverskySimilarity(nn.Module):
         Compute intersection a ∩ b with feature bank weighting
         Following the paper's definition of set intersection in feature space
         """
-        if self.intersection_reduction == "product":
-            # Element-wise minimum (standard set intersection)
-            intersection = torch.min(a, b)
-        elif self.intersection_reduction == "mean":
-            intersection = (a + b) / 2
-        else:
-            raise ValueError(f"Unknown intersection_reduction: {self.intersection_reduction}")
-        
+        intersection = TverskySimilarity.apply_intersection_reduction(self.intersection_reduction, a, b)
         # Apply feature bank weighting: |·|_Ω (Equation 6)
         weighted = intersection * self.feature_bank
         return weighted.sum(dim=-1)  # Sum over feature dimension
@@ -135,13 +128,7 @@ class TverskySimilarity(nn.Module):
     
     def _intersection_stable(self, a: torch.Tensor, b: torch.Tensor, feature_bank: torch.Tensor) -> torch.Tensor:
         """Stable intersection computation"""
-        if self.intersection_reduction == "product":
-            intersection = torch.min(a, b)
-        elif self.intersection_reduction == "mean":
-            intersection = (a + b) / 2
-        else:
-            raise ValueError(f"Unknown intersection_reduction: {self.intersection_reduction}")
-        
+        intersection = TverskySimilarity.apply_intersection_reduction(self.intersection_reduction, a, b)
         weighted = intersection * feature_bank
         return weighted.sum(dim=-1)
     
@@ -156,3 +143,30 @@ class TverskySimilarity(nn.Module):
         
         weighted = diff * feature_bank
         return weighted.sum(dim=-1)
+    
+    SOFTMIN_ALPHA = -1.0
+
+    @staticmethod
+    def apply_intersection_reduction(intersection_reduction: Literal["product", "mean", "min", "max", "gmean", "softmin"], a: torch.Tensor, b: torch.Tensor):
+        match intersection_reduction:
+            case "product":
+                return a * b
+            case "mean":
+                return (a + b) / 2
+            case "min":
+                return torch.min(a, b)
+            case "max":
+                return torch.max(a, b)
+            case "gmean":
+                log_a = torch.log(a)
+                log_b = torch.log(b)
+                return torch.exp((log_a + log_b) / 2)
+            case "softmin":
+                """For Softmin, LogSumExp with a negative SOFTMIN_ALPHA is used"""
+                exp_a = torch.exp(TverskySimilarity.SOFTMIN_ALPHA * a)
+                exp_b = torch.exp(TverskySimilarity.SOFTMIN_ALPHA * b)
+                return (1.0 / TverskySimilarity.SOFTMIN_ALPHA) * torch.log(exp_a + exp_b)
+            case _:
+                raise ValueError(f"Unknown intersection_reduction: {intersection_reduction}")
+        
+
