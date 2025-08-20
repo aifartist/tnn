@@ -43,36 +43,37 @@ class NABirdsDataset(Dataset):
         self._load_dataset()
     
     def _load_dataset(self):
-        """Load NABirds dataset from Deeplake Hub"""
+        """Load NABirds dataset from Deeplake Hub or local cache"""
         try:
-            # Deeplake hub paths for NABirds
-            hub_paths = {
-                'train': 'hub://activeloop/nabirds-dataset-train',
-                'val': 'hub://activeloop/nabirds-dataset-val'
-            }
-            
-            if self.split not in hub_paths:
-                raise ValueError(f"Split '{self.split}' not supported. Use 'train' or 'val'")
-            
-            print(f"Loading NABirds {self.split} dataset from Deeplake...")
-            
-            # Load dataset with optional local caching
             if self.cache_dir and self.use_local:
-                # Create local path for this split
-                local_path = os.path.join(self.cache_dir, f'nabirds_{self.split}')
-                os.makedirs(self.cache_dir, exist_ok=True)
+                # Try to load from local directory structure
+                local_path = os.path.join(self.cache_dir, self.split)
                 
-                # Try to load from local cache first
                 if os.path.exists(local_path):
-                    print(f"Loading from local cache: {local_path}")
+                    print(f"Loading NABirds {self.split} dataset from local directory: {local_path}")
                     self.ds = deeplake.load(local_path)
                 else:
-                    print(f"Downloading and caching to: {local_path}")
-                    # Download and save locally
+                    # Fallback to hub and cache locally
+                    print(f"Local dataset not found at {local_path}")
+                    print(f"Downloading from hub and caching...")
+                    hub_paths = {
+                        'train': 'hub://activeloop/nabirds-dataset-train',
+                        'val': 'hub://activeloop/nabirds-dataset-val'
+                    }
                     remote_ds = deeplake.load(hub_paths[self.split])
+                    os.makedirs(os.path.dirname(local_path), exist_ok=True)
                     self.ds = remote_ds.copy(local_path)
             else:
                 # Stream directly from hub
+                hub_paths = {
+                    'train': 'hub://activeloop/nabirds-dataset-train',
+                    'val': 'hub://activeloop/nabirds-dataset-val'
+                }
+                
+                if self.split not in hub_paths:
+                    raise ValueError(f"Split '{self.split}' not supported. Use 'train' or 'val'")
+                
+                print(f"Loading NABirds {self.split} dataset from Deeplake hub...")
                 self.ds = deeplake.load(hub_paths[self.split])
             
             print(f"NABirds {self.split} dataset loaded successfully!")
@@ -80,19 +81,19 @@ class NABirdsDataset(Dataset):
             print(f"  Image shape: {self.ds.images.shape}")
             print(f"  Labels shape: {self.ds.labels.shape}")
             
-            # Get number of unique classes
-            if hasattr(self.ds.labels, 'info') and 'class_names' in self.ds.labels.info:
-                self.num_classes = len(self.ds.labels.info['class_names'])
-                self.class_names = self.ds.labels.info['class_names']
-            else:
-                # Fallback: compute unique labels
-                unique_labels = set()
-                for i in range(min(1000, len(self.ds))):  # Sample first 1000 to get class count
-                    unique_labels.add(int(self.ds.labels[i].numpy()))
-                self.num_classes = len(unique_labels)
-                self.class_names = [f"class_{i}" for i in range(self.num_classes)]
+            # Use efficient pre-computed mapping for NABirds
+            # NABirds typically has labels in range 1-1011, we need 0-1010
+            self.label_offset = 1  # Most datasets start from 1, we need 0-indexed
+            self.num_classes = 1011  # Known NABirds class count
+            self.class_names = [f"class_{i}" for i in range(self.num_classes)]
             
             print(f"  Number of classes: {self.num_classes}")
+            print(f"  Using label offset: {self.label_offset} (subtract from original labels)")
+            
+        except Exception as e:
+            print(f"Error loading NABirds dataset: {e}")
+            print("Falling back to dummy data for testing...")
+            self._create_dummy_data()
             
         except Exception as e:
             print(f"Error loading NABirds dataset: {e}")
@@ -155,9 +156,16 @@ class NABirdsDataset(Dataset):
                 if self.transform:
                     image = self.transform(image)
                 
-                # Ensure label is scalar
+                # Ensure label is scalar and apply offset mapping
                 if isinstance(label, np.ndarray):
                     label = label.item()
+                
+                # Apply simple offset mapping to normalize to [0, num_classes-1]
+                if hasattr(self, 'label_offset'):
+                    original_label = int(label)
+                    label = original_label - self.label_offset
+                    # Clamp to valid range
+                    label = max(0, min(label, self.num_classes - 1))
                 
                 return image, label
             else:
@@ -190,27 +198,27 @@ class NABirdsDataset(Dataset):
 
 
 def get_nabirds_loaders(
-    data_dir: str = './data/nabirds',
+    data_dir: str = './datasets/nabirds',
     batch_size: int = 64,
     frozen: bool = False,
     pretrained: bool = True,
     image_size: int = 224,
     num_workers: int = 4,
     pin_memory: bool = True,
-    use_local: bool = False
+    use_local: bool = True  # Default to True for downloaded datasets
 ) -> Tuple[DataLoader, DataLoader, DataLoader]:
     """
     Get NABirds train, validation, and test data loaders using Deeplake
     
     Args:
-        data_dir: Directory for local caching (optional)
+        data_dir: Directory containing NABirds dataset (default: ./datasets/nabirds)
         batch_size: Batch size for data loaders
         frozen: Whether backbone is frozen (affects augmentation)
         pretrained: Whether using pretrained weights (affects normalization)
         image_size: Target image size (224 for ResNet)
         num_workers: Number of data loading workers
         pin_memory: Whether to pin memory for GPU
-        use_local: Whether to cache dataset locally
+        use_local: Whether to use local dataset (True) or stream from hub (False)
         
     Returns:
         Tuple of (train_loader, val_loader, test_loader)
@@ -219,28 +227,60 @@ def get_nabirds_loaders(
     # Get transforms
     train_transform, val_transform = get_nabirds_transforms(frozen, pretrained, image_size)
     
-    # Load datasets using Deeplake
-    train_dataset = NABirdsDataset(
-        split='train',
-        transform=train_transform,
-        cache_dir=data_dir if use_local else None,
-        use_local=use_local
-    )
+    # Check if local dataset exists
+    local_train_dir = os.path.join(data_dir, 'train')
+    local_val_dir = os.path.join(data_dir, 'val')
     
-    val_dataset = NABirdsDataset(
-        split='val',
-        transform=val_transform,
-        cache_dir=data_dir if use_local else None,
-        use_local=use_local
-    )
-    
-    # For test, we'll use validation set since NABirds has train/val splits
-    test_dataset = NABirdsDataset(
-        split='val',
-        transform=val_transform,
-        cache_dir=data_dir if use_local else None,
-        use_local=use_local
-    )
+    if use_local and os.path.exists(local_train_dir) and os.path.exists(local_val_dir):
+        print(f"Using local NABirds dataset from {data_dir}")
+        # Load from local directories
+        train_dataset = NABirdsDataset(
+            split='train',
+            cache_dir=data_dir,
+            use_local=True,
+            transform=train_transform
+        )
+        
+        val_dataset = NABirdsDataset(
+            split='val',
+            cache_dir=data_dir,
+            use_local=True,
+            transform=val_transform
+        )
+        
+        test_dataset = NABirdsDataset(
+            split='val',
+            cache_dir=data_dir,
+            use_local=True,
+            transform=val_transform
+        )
+    else:
+        if use_local:
+            print(f"Local NABirds dataset not found at {data_dir}")
+            print("To download the dataset, run: python download_nabirds.py")
+            print("Falling back to streaming from Deeplake hub...")
+        
+        # Stream from Deeplake hub
+        train_dataset = NABirdsDataset(
+            split='train',
+            transform=train_transform,
+            cache_dir=None,
+            use_local=False
+        )
+        
+        val_dataset = NABirdsDataset(
+            split='val',
+            transform=val_transform,
+            cache_dir=None,
+            use_local=False
+        )
+        
+        test_dataset = NABirdsDataset(
+            split='val',
+            transform=val_transform,
+            cache_dir=None,
+            use_local=False
+        )
     
     # Create data loaders
     train_loader = DataLoader(

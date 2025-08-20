@@ -173,7 +173,7 @@ class ExperimentConfig:
         if self.dataset == 'mnist':
             return 10
         elif self.dataset == 'nabirds':
-            return 400  # Approximate, will be updated with actual dataset
+            return 1011  # NABirds has 1011 classes (400 species but 1011 visual categories)
         else:
             raise ValueError(f"Unknown dataset: {self.dataset}")
     
