@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tversky-nn"
-version = "1.0.1"
+version = "0.1.2"
 description = "My faithful reproduction of Tversky Neural Networks (TNNs)"
 readme = "README.md"
 license = { text = "MIT" }
