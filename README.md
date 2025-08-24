@@ -1,5 +1,6 @@
 # Tversky Neural Networks (TNN)
 
+[![PyPI Downloads](https://static.pepy.tech/badge/tversky-nn)](https://pepy.tech/projects/tversky-nn)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/release/python-3100/)
 
@@ -34,7 +35,7 @@ Where:
 ### From PyPI (Recommended)
 
 ```bash
-pip install tnn
+pip install tversky-nn
 ```
 
 ### From Source
@@ -258,7 +259,7 @@ We welcome contributions! Areas where help is needed:
 
 ## To add: 
 - [ ] Include GPT-2 implementation and benchmarks. 
-- [ ] Run ResNet18 benchmarks on NABirds Dataset. 
+- [X] ~~Run ResNet18 benchmarks on NABirds Dataset.~~ (DEFERRED UNTIL LATER)
 - [ ] Add benchmarks for different datasets for different weight distributions. 
 - [X] Unify training configuration instead of keeping several training files for different models. 
 - [ ] Include type checking and other software development process standards to maintain robustness. 
