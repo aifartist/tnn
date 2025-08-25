@@ -14,7 +14,7 @@ from typing import Dict, Any, List
 
 # Import from installed tnn package
 from tnn.training import (
-    UnifiedConfig, XORConfig, ExperimentConfig, TverskyConfig,
+    UnifiedConfig, XORConfig, TverskyConfig,
     ExperimentFactory, Presets
 )
 
@@ -60,10 +60,23 @@ Examples:
                        help='Learning rate')
     parser.add_argument('--batch-size', type=int, default=64,
                        help='Batch size')
-    parser.add_argument('--optimizer', default='adam', choices=['adam', 'sgd'],
+    parser.add_argument('--optimizer', default='adam', choices=['adam', 'sgd', 'adamw'],
                        help='Optimizer type')
     parser.add_argument('--scheduler', default='cosine', choices=['none', 'cosine', 'step', 'plateau'],
                        help='Learning rate scheduler')
+    
+    # Scheduler-specific parameters
+    parser.add_argument('--cosine-t-max', type=int,
+                       help='T_max for cosine scheduler (defaults to epochs)')
+    parser.add_argument('--step-size', type=int,
+                       help='Step size for step scheduler (defaults to epochs//3)')
+    parser.add_argument('--step-gamma', type=float, default=0.1,
+                       help='Gamma for step scheduler')
+    parser.add_argument('--plateau-patience', type=int, default=10,
+                       help='Patience for plateau scheduler')
+    parser.add_argument('--plateau-factor', type=float, default=0.1,
+                       help='Factor for plateau scheduler')
+    
     parser.add_argument('--seed', type=int, default=42,
                        help='Random seed for reproducibility')
     
@@ -150,6 +163,21 @@ def create_config_from_args(args) -> UnifiedConfig:
         intersection_reduction=args.intersection_reduction_function
     )
     
+    # Create scheduler parameters based on scheduler type and CLI args
+    scheduler_params = None
+    if args.scheduler == 'cosine':
+        scheduler_params = {'T_max': args.cosine_t_max or args.epochs}
+    elif args.scheduler == 'step':
+        scheduler_params = {
+            'step_size': args.step_size or (args.epochs // 3),
+            'gamma': args.step_gamma
+        }
+    elif args.scheduler == 'plateau':
+        scheduler_params = {
+            'patience': args.plateau_patience,
+            'factor': args.plateau_factor
+        }
+    
     # Create model-specific configurations
     if args.model_type == 'xor':
         xor_config = XORConfig(
@@ -167,6 +195,7 @@ def create_config_from_args(args) -> UnifiedConfig:
             batch_size=args.batch_size,
             optimizer=args.optimizer,
             scheduler=args.scheduler,
+            scheduler_params=scheduler_params,
             seed=args.seed,
             device=args.device,
             checkpoint_dir=args.checkpoint_dir,
@@ -176,21 +205,6 @@ def create_config_from_args(args) -> UnifiedConfig:
         )
         
     elif args.model_type == 'resnet':
-        resnet_config = ExperimentConfig(
-            architecture=args.architecture,
-            dataset=args.dataset,
-            pretrained=args.pretrained,
-            frozen=args.frozen,
-            use_tversky=args.use_tversky,
-            epochs=args.epochs,
-            batch_size=args.batch_size,
-            learning_rate=args.lr,
-            data_dir=args.data_dir,
-            checkpoint_dir=args.checkpoint_dir,
-            device=args.device,
-            tversky=tversky_config
-        )
-        
         config = UnifiedConfig(
             model_type='resnet',
             experiment_name=args.experiment_name or 'resnet_experiment',
@@ -199,12 +213,20 @@ def create_config_from_args(args) -> UnifiedConfig:
             batch_size=args.batch_size,
             optimizer=args.optimizer,
             scheduler=args.scheduler,
+            scheduler_params=scheduler_params,
             seed=args.seed,
             device=args.device,
             checkpoint_dir=args.checkpoint_dir,
             results_dir=args.results_dir,
             tversky=tversky_config,
-            resnet_config=resnet_config
+            # ResNet-specific parameters (now direct fields)
+            architecture=args.architecture,
+            dataset=args.dataset,
+            pretrained=args.pretrained,
+            frozen=args.frozen,
+            use_tversky=args.use_tversky,
+            data_dir=args.data_dir,
+            num_workers=4
         )
         
     else:
@@ -231,12 +253,12 @@ def run_single_experiment(config: UnifiedConfig) -> Dict[str, Any]:
         print(f"Tversky alpha: {config.tversky.alpha}, beta: {config.tversky.beta}")
         print(f"Tversky intersection reduction function: {config.tversky.intersection_reduction}")
     
-    if config.model_type == 'resnet' and config.resnet_config:
-        print(f"Architecture: {config.resnet_config.architecture}")
-        print(f"Dataset: {config.resnet_config.dataset}")
-        print(f"Pretrained: {config.resnet_config.pretrained}")
-        print(f"Frozen: {config.resnet_config.frozen}")
-        print(f"Use Tversky: {config.resnet_config.use_tversky}")
+    if config.model_type == 'resnet':
+        print(f"Architecture: {config.architecture}")
+        print(f"Dataset: {config.dataset}")
+        print(f"Pretrained: {config.pretrained}")
+        print(f"Frozen: {config.frozen}")
+        print(f"Use Tversky: {config.use_tversky}")
     
     print("=" * 80)
     
@@ -268,7 +290,7 @@ def run_table1_experiments(args) -> Dict[str, Any]:
     # Override dataset if specified
     if args.dataset != 'mnist':
         for config in configs:
-            config.resnet_config.dataset = args.dataset
+            config.dataset = args.dataset
     
     all_results = {}
     

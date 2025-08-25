@@ -130,6 +130,12 @@ class XORTrainer:
                 lr=self.config.learning_rate,
                 weight_decay=self.config.weight_decay
             )
+        elif self.config.optimizer == 'adamw':
+            return optim.AdamW(
+                self.model.parameters(),
+                lr=self.config.learning_rate,
+                weight_decay=self.config.weight_decay
+            )
         elif self.config.optimizer == 'sgd':
             return optim.SGD(
                 self.model.parameters(),

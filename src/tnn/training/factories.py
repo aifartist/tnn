@@ -5,12 +5,12 @@ import torch
 from typing import Any, Tuple, Union
 from torch.utils.data import DataLoader
 
-from .config import UnifiedConfig
-from .xor_trainer import XORTrainer, TverskyXORNet
-from .trainer import ResNetTrainer
-from ..models import get_resnet_model
-from ..datasets import get_mnist_loaders, get_nabirds_loaders
-from ..utils import get_xor_data
+from tnn.training.config import UnifiedConfig
+from tnn.training.xor_trainer import XORTrainer, TverskyXORNet
+from tnn.training.trainer import ResNetTrainer
+from tnn.models import get_resnet_model
+from tnn.datasets import get_mnist_loaders, get_nabirds_loaders
+from tnn.utils import get_xor_data
 
 class ModelFactory:
     """Factory for creating different model types"""
@@ -20,20 +20,19 @@ class ModelFactory:
         """Create model based on configuration"""
         if config.model_type == 'xor':
             return TverskyXORNet(
-                hidden_dim=config.xor_config.hidden_dim,
-                num_prototypes=config.tversky.num_prototypes,
-                alpha=config.tversky.alpha,
-                beta=config.tversky.beta
+                hidden_dim=config.xor_config.hidden_dim if config.xor_config else 8,
+                num_prototypes=config.tversky.num_prototypes if config.tversky else 4,
+                alpha=config.tversky.alpha if config.tversky else 0.5,
+                beta=config.tversky.beta if config.tversky else 0.5
             )
         elif config.model_type == 'resnet':
-            resnet_config = config.resnet_config
             return get_resnet_model(
-                architecture=resnet_config.architecture,
-                num_classes=resnet_config.get_num_classes(),
-                pretrained=resnet_config.pretrained,
-                frozen=resnet_config.frozen,
-                use_tversky=resnet_config.use_tversky,
-                **config.tversky.__dict__
+                architecture=config.architecture,
+                num_classes=config.get_num_classes(),
+                pretrained=config.pretrained,
+                frozen=config.frozen,
+                use_tversky=config.use_tversky,
+                **config.tversky.__dict__ if config.tversky else {}
             )
         else:
             raise ValueError(f"Model type {config.model_type} not supported yet")
@@ -47,33 +46,32 @@ class DataFactory:
         if config.model_type == 'xor':
             # Return raw tensors for XOR (handled by XORTrainer)
             X_train, y_train = get_xor_data(
-                config.xor_config.n_samples, 
-                noise_std=config.xor_config.noise_std
+                config.xor_config.n_samples if config.xor_config else 1000, 
+                noise_std=config.xor_config.noise_std if config.xor_config else 0.1
             )
             X_test, y_test = get_xor_data(
-                config.xor_config.test_samples, 
-                noise_std=config.xor_config.noise_std
+                config.xor_config.test_samples if config.xor_config else 200, 
+                noise_std=config.xor_config.noise_std if config.xor_config else 0.1
             )
             return (X_train, y_train, X_test, y_test)
         
         elif config.model_type == 'resnet':
-            resnet_config = config.resnet_config
-            if resnet_config.dataset == 'mnist':
+            if config.dataset == 'mnist':
                 return get_mnist_loaders(
-                    data_dir=resnet_config.data_dir,
+                    data_dir=config.data_dir,
                     batch_size=config.batch_size,
-                    frozen=resnet_config.frozen,
-                    pretrained=resnet_config.pretrained
+                    frozen=config.frozen,
+                    pretrained=config.pretrained
                 )
-            elif resnet_config.dataset == 'nabirds':
+            elif config.dataset == 'nabirds':
                 return get_nabirds_loaders(
-                    data_dir=resnet_config.data_dir,
+                    data_dir=config.data_dir,
                     batch_size=config.batch_size,
-                    frozen=resnet_config.frozen,
-                    pretrained=resnet_config.pretrained
+                    frozen=config.frozen,
+                    pretrained=config.pretrained
                 )
             else:
-                raise ValueError(f"Dataset {resnet_config.dataset} not supported")
+                raise ValueError(f"Dataset {config.dataset} not supported")
         else:
             raise ValueError(f"Model type {config.model_type} not supported yet")
 
@@ -97,7 +95,7 @@ class TrainerFactory:
                 train_loader=train_loader,
                 val_loader=val_loader,
                 test_loader=test_loader,
-                config=config.resnet_config
+                config=config  # Pass the unified config directly
             )
         else:
             raise ValueError(f"Model type {config.model_type} not supported yet")
