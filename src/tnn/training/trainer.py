@@ -11,7 +11,7 @@ import json
 from typing import Dict, Optional, Tuple, Any, Union
 from tqdm import tqdm
 
-from .config import ExperimentConfig
+from .config import UnifiedConfig
 from .metrics import ClassificationMetrics, MetricsTracker
 
 class ResNetTrainer:
@@ -25,7 +25,7 @@ class ResNetTrainer:
         model: nn.Module,
         train_loader: DataLoader,
         val_loader: DataLoader,
-        config: ExperimentConfig,
+        config: UnifiedConfig,
         test_loader: Optional[DataLoader] = None
     ):
         self.model = model
@@ -90,6 +90,12 @@ class ResNetTrainer:
                     lr=self.config.learning_rate,
                     weight_decay=self.config.weight_decay
                 )
+            elif self.config.optimizer == 'adamw':
+                optimizer = optim.AdamW(
+                    trainable_params,
+                    lr=self.config.learning_rate,
+                    weight_decay=self.config.weight_decay
+                )
             elif self.config.optimizer == 'sgd':
                 optimizer = optim.SGD(
                     trainable_params,
@@ -97,6 +103,8 @@ class ResNetTrainer:
                     momentum=self.config.momentum,
                     weight_decay=self.config.weight_decay
                 )
+            else:
+                raise ValueError(f"Unknown optimizer: {self.config.optimizer}")
         else:
             # Train all parameters with optimized learning rates for Tversky models
             backbone_params = []
@@ -150,6 +158,14 @@ class ResNetTrainer:
                     betas=(0.9, 0.999),
                     eps=1e-8
                 )
+            elif self.config.optimizer == 'adamw':
+                optimizer = optim.AdamW(
+                    param_groups,
+                    lr=self.config.learning_rate,
+                    weight_decay=self.config.weight_decay,
+                    betas=(0.9, 0.999),
+                    eps=1e-8
+                )
             elif self.config.optimizer == 'sgd':
                 optimizer = optim.SGD(
                     param_groups,
@@ -163,17 +179,24 @@ class ResNetTrainer:
             
         return optimizer
         
-    def _setup_scheduler(self) -> Optional[Union[optim.lr_scheduler.CosineAnnealingLR, optim.lr_scheduler.StepLR]]:
+    def _setup_scheduler(self) -> Optional[Union[optim.lr_scheduler.CosineAnnealingLR, optim.lr_scheduler.StepLR, optim.lr_scheduler.ReduceLROnPlateau]]:
         """Setup learning rate scheduler"""
         if self.config.scheduler == 'none':
             return None
         elif self.config.scheduler == 'cosine':
+            params = self.config.scheduler_params or {'T_max': self.config.epochs}
             return optim.lr_scheduler.CosineAnnealingLR(
-                self.optimizer, **self.config.scheduler_params
+                self.optimizer, **params
             )
         elif self.config.scheduler == 'step':
+            params = self.config.scheduler_params or {'step_size': self.config.epochs // 3, 'gamma': 0.1}
             return optim.lr_scheduler.StepLR(
-                self.optimizer, **self.config.scheduler_params
+                self.optimizer, **params
+            )
+        elif self.config.scheduler == 'plateau':
+            params = self.config.scheduler_params or {'patience': 10, 'factor': 0.1}
+            return optim.lr_scheduler.ReduceLROnPlateau(
+                self.optimizer, mode='min', **params
             )
         else:
             raise ValueError(f"Unknown scheduler: {self.config.scheduler}")
@@ -271,7 +294,13 @@ class ResNetTrainer:
             
             # Update scheduler
             if self.scheduler:
-                self.scheduler.step()
+                if isinstance(self.scheduler, optim.lr_scheduler.ReduceLROnPlateau):
+                    # Plateau scheduler needs a metric (use validation loss if available, else train loss)
+                    metric = val_metrics['loss'] if val_metrics else train_metrics['loss']
+                    self.scheduler.step(metric)
+                else:
+                    # Other schedulers don't need metrics
+                    self.scheduler.step()
                 
             # Track metrics
             self.metrics_tracker.add_epoch(epoch, train_metrics, val_metrics)

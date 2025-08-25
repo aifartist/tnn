@@ -1,7 +1,8 @@
 """
 Preset configurations for common TNN experiments
 """
-from .config import UnifiedConfig, XORConfig, ExperimentConfig, TverskyConfig
+from typing import Literal
+from tnn.training.config import UnifiedConfig, XORConfig, TverskyConfig
 
 class Presets:
     """Common preset configurations for TNN experiments"""
@@ -33,74 +34,56 @@ class Presets:
     @staticmethod
     def resnet_mnist_quick() -> UnifiedConfig:
         """Quick ResNet MNIST test"""
-        resnet_config = ExperimentConfig(
-            architecture='resnet18',
-            dataset='mnist',
-            pretrained=True,
-            frozen=False,
-            use_tversky=True,
-            epochs=2,  # Quick test
-            batch_size=64
-        )
-        
         return UnifiedConfig(
             model_type='resnet',
             experiment_name='resnet_mnist_quick',
             epochs=2,
             learning_rate=0.01,
             batch_size=64,
-            tversky=TverskyConfig(num_prototypes=8, alpha=0.5, beta=0.5),
-            resnet_config=resnet_config
-        )
-    
-    @staticmethod
-    def resnet_mnist_paper() -> UnifiedConfig:
-        """ResNet MNIST configuration for paper reproduction"""
-        resnet_config = ExperimentConfig(
             architecture='resnet18',
             dataset='mnist',
             pretrained=True,
             frozen=False,
             use_tversky=True,
-            epochs=50,
-            batch_size=64
+            tversky=TverskyConfig(num_prototypes=8, alpha=0.5, beta=0.5)
         )
-        
+    
+    @staticmethod
+    def resnet_mnist_paper() -> UnifiedConfig:
+        """ResNet MNIST configuration for paper reproduction"""
         return UnifiedConfig(
             model_type='resnet',
             experiment_name='resnet_mnist_paper',
             epochs=50,
             learning_rate=0.01,
             batch_size=64,
-            tversky=TverskyConfig(num_prototypes=8, alpha=0.5, beta=0.5),
-            resnet_config=resnet_config
+            architecture='resnet18',
+            dataset='mnist',
+            pretrained=True,
+            frozen=False,
+            use_tversky=True,
+            tversky=TverskyConfig(num_prototypes=8, alpha=0.5, beta=0.5)
         )
     
     @staticmethod
     def resnet_nabirds_paper() -> UnifiedConfig:
         """ResNet NABirds configuration for paper reproduction"""
-        resnet_config = ExperimentConfig(
-            architecture='resnet50',  # Paper uses ResNet-50 for NABirds
-            dataset='nabirds',
-            pretrained=True,
-            frozen=True,  # Paper typically uses frozen backbone for NABirds
-            use_tversky=True,
-            epochs=100,
-            batch_size=32  # Smaller batch size for larger model
-        )
-        
         return UnifiedConfig(
             model_type='resnet',
             experiment_name='resnet_nabirds_paper',
             epochs=100,
-            learning_rate=0.01,
-            batch_size=32,
-            tversky=TverskyConfig(num_prototypes=16, alpha=0.5, beta=0.5),  # More prototypes for complex dataset
-            resnet_config=resnet_config
+            learning_rate=0.001,  # Lower LR for NABirds
+            batch_size=32,        # Smaller batch for NABirds
+            architecture='resnet50',
+            dataset='nabirds',
+            pretrained=True,
+            frozen=False,
+            use_tversky=True,
+            tversky=TverskyConfig(num_prototypes=16, alpha=0.5, beta=0.5)
         )
     
     @staticmethod
-    def table1_mnist(architecture: str = 'resnet18') -> list[UnifiedConfig]:
+    def table1_mnist(architecture: Literal['resnet18', 'resnet50', 'resnet101', 'resnet152'] = 'resnet18') -> list[UnifiedConfig]:
         """Generate all Table 1 configurations for MNIST"""
         configs = []
         
@@ -117,24 +100,18 @@ class Presets:
         ]
         
         for pretrained, frozen, use_tversky, desc in combinations:
-            resnet_config = ExperimentConfig(
-                architecture=architecture,
-                dataset='mnist',
-                pretrained=pretrained,
-                frozen=frozen,
-                use_tversky=use_tversky,
-                epochs=50,
-                batch_size=64
-            )
-            
             config = UnifiedConfig(
                 model_type='resnet',
                 experiment_name=f'table1_mnist_{desc}',
                 epochs=50,
                 learning_rate=0.01,
                 batch_size=64,
-                tversky=base_tversky,
-                resnet_config=resnet_config
+                architecture=architecture,
+                dataset='mnist',
+                pretrained=pretrained,
+                frozen=frozen,
+                use_tversky=use_tversky,
+                tversky=base_tversky
             )
             configs.append(config)
         

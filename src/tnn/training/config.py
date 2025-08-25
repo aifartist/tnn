@@ -43,9 +43,22 @@ class UnifiedConfig:
     epochs: int = 50
     learning_rate: float = 0.01
     batch_size: int = 64
-    optimizer: Literal['adam', 'sgd'] = 'adam'
+    optimizer: Literal['adam', 'sgd', 'adamw'] = 'adam'
     weight_decay: float = 1e-4
     scheduler: Literal['none', 'cosine', 'step', 'plateau'] = 'cosine'
+    scheduler_params: Optional[Dict[str, Any]] = None
+    momentum: float = 0.9  # For SGD
+    
+    # ResNet-specific settings (previously in ExperimentConfig)
+    architecture: Literal['resnet18', 'resnet50', 'resnet101', 'resnet152'] = 'resnet18'
+    pretrained: bool = True
+    frozen: bool = False
+    use_tversky: bool = True
+    dataset: Literal['mnist', 'nabirds'] = 'mnist'
+    data_dir: str = './data'
+    num_workers: int = 4
+    eval_every: int = 5  # Evaluate every N epochs
+    save_checkpoints: bool = True
     
     # Common Tversky settings
     tversky: Optional[TverskyConfig] = None
@@ -57,10 +70,8 @@ class UnifiedConfig:
     mixed_precision: bool = True
     seed: int = 42
     
-    # Model-specific configurations
+    # Model-specific configurations (only XOR now, ResNet params are now direct)
     xor_config: Optional[XORConfig] = None
-    resnet_config: Optional['ExperimentConfig'] = None  # Forward reference
-    # gpt2_config: Optional['GPT2Config'] = None  # Future
     
     def __post_init__(self):
         """Post-initialization setup"""
@@ -70,82 +81,11 @@ class UnifiedConfig:
         if self.run_name is None:
             self.run_name = self._generate_run_name()
             
-        # Initialize model-specific configs if not provided
+        # Initialize XOR config if needed
         if self.model_type == 'xor' and self.xor_config is None:
             self.xor_config = XORConfig()
-        elif self.model_type == 'resnet' and self.resnet_config is None:
-            # Create a basic ResNet config, will be overridden by specific args
-            self.resnet_config = ExperimentConfig()
-    
-    def _generate_run_name(self) -> str:
-        """Generate a descriptive run name"""
-        if self.model_type == 'xor':
-            prototypes = self.tversky.num_prototypes if self.tversky else 4
-            return f"xor_{prototypes}p_ep{self.epochs}"
-        elif self.model_type == 'resnet':
-            arch = getattr(self.resnet_config, 'architecture', 'resnet18') if self.resnet_config else 'resnet18'
-            dataset = getattr(self.resnet_config, 'dataset', 'mnist') if self.resnet_config else 'mnist'
-            return f"{arch}_{dataset}_tversky_ep{self.epochs}"
-        else:
-            return f"{self.model_type}_experiment"
-    
-    def get_effective_config(self):
-        """Get the effective configuration for the selected model type"""
-        if self.model_type == 'xor':
-            return self.xor_config
-        elif self.model_type == 'resnet':
-            return self.resnet_config
-        else:
-            raise ValueError(f"Model type {self.model_type} not yet supported")
-
-@dataclass
-class ExperimentConfig:
-    """Complete experiment configuration"""
-    
-    # Experiment identification
-    experiment_name: str = "tversky_resnet_mnist"
-    run_name: Optional[str] = None
-    
-    # Model configuration
-    architecture: Literal['resnet18', 'resnet50', 'resnet101', 'resnet152'] = 'resnet18'
-    pretrained: bool = True
-    frozen: bool = False
-    use_tversky: bool = True
-    
-    # Dataset configuration
-    dataset: Literal['mnist', 'nabirds'] = 'mnist'
-    data_dir: str = './data'
-    batch_size: int = 64
-    num_workers: int = 4
-    
-    # Training configuration
-    epochs: int = 50
-    learning_rate: float = 0.01  # Higher default learning rate for Tversky layers
-    weight_decay: float = 1e-4
-    scheduler: Literal['none', 'cosine', 'step'] = 'cosine'
-    scheduler_params: Optional[Dict[str, Any]] = None
-    
-    # Optimizer configuration
-    optimizer: Literal['adam', 'sgd'] = 'adam'
-    momentum: float = 0.9  # For SGD
-    
-    # Evaluation configuration
-    eval_every: int = 5  # Evaluate every N epochs
-    save_checkpoints: bool = True
-    checkpoint_dir: str = './checkpoints'
-    
-    # Tversky configuration
-    tversky: Optional[TverskyConfig] = None
-    
-    # Hardware configuration
-    device: str = 'auto'  # 'auto', 'cuda', 'cpu'
-    mixed_precision: bool = True
-    
-    def __post_init__(self):
-        """Post-initialization setup"""
-        if self.tversky is None:
-            self.tversky = TverskyConfig()
             
+        # Set up scheduler parameters
         if self.scheduler_params is None:
             if self.scheduler == 'cosine':
                 self.scheduler_params = {'T_max': self.epochs}
@@ -153,20 +93,23 @@ class ExperimentConfig:
                 self.scheduler_params = {'step_size': self.epochs // 3, 'gamma': 0.1}
             else:
                 self.scheduler_params = {}
-                
-        if self.run_name is None:
-            self.run_name = self._generate_run_name()
     
     def _generate_run_name(self) -> str:
         """Generate a descriptive run name"""
-        components = [
-            self.architecture,
-            self.dataset,
-            "tversky" if self.use_tversky else "linear",
-            "pretrained" if self.pretrained else "scratch",
-            "frozen" if self.frozen else "unfrozen"
-        ]
-        return "_".join(components)
+        if self.model_type == 'xor':
+            prototypes = self.tversky.num_prototypes if self.tversky else 4
+            return f"xor_{prototypes}p_ep{self.epochs}"
+        elif self.model_type == 'resnet':
+            components = [
+                self.architecture,
+                self.dataset,
+                "tversky" if self.use_tversky else "linear",
+                "pretrained" if self.pretrained else "scratch",
+                "frozen" if self.frozen else "unfrozen"
+            ]
+            return "_".join(components)
+        else:
+            return f"{self.model_type}_experiment"
     
     def get_num_classes(self) -> int:
         """Get number of classes for the dataset"""
@@ -183,6 +126,9 @@ class ExperimentConfig:
         for key, value in self.__dict__.items():
             if key == 'tversky':
                 config_dict[key] = value.__dict__ if value else None
+            elif key == 'xor_config':
+                config_dict[key] = value.__dict__ if value else None
             else:
                 config_dict[key] = value
         return config_dict
+
