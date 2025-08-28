@@ -61,14 +61,16 @@ class DataFactory:
                     data_dir=config.data_dir,
                     batch_size=config.batch_size,
                     frozen=config.frozen,
-                    pretrained=config.pretrained
+                    pretrained=config.pretrained,
+                    num_workers=config.num_workers,
                 )
             elif config.dataset == 'nabirds':
                 return get_nabirds_loaders(
                     data_dir=config.data_dir,
                     batch_size=config.batch_size,
                     frozen=config.frozen,
-                    pretrained=config.pretrained
+                    pretrained=config.pretrained,
+                    num_workers=config.num_workers,
                 )
             else:
                 raise ValueError(f"Dataset {config.dataset} not supported")

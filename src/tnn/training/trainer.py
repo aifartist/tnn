@@ -37,6 +37,8 @@ class ResNetTrainer:
         # Setup device
         self.device = self._setup_device()
         self.model = self.model.to(self.device)
+        if config.compile_model:
+            self.model = torch.compile(self.model, mode='max-autotune')
 
         # Setup training components
         self.criterion = nn.CrossEntropyLoss()

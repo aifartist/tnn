@@ -18,6 +18,13 @@ from tnn.training import (
     ExperimentFactory, Presets
 )
 
+def device_type(value: str) -> str:
+    if value == 'auto' or value == 'cpu' or value == 'cuda':
+        return value
+    if value.startswith('cuda:') and value[5:].isdigit():
+        return value
+    raise argparse.ArgumentTypeError(f"Invalid device: {value}")
+
 def parse_args():
     """Parse command line arguments for unified training"""
     parser = argparse.ArgumentParser(
@@ -123,14 +130,24 @@ Examples:
                        help='Checkpoint directory')
     parser.add_argument('--results-dir', default='./results',
                        help='Results directory')
-    parser.add_argument('--device', default='auto', choices=['auto', 'cuda', 'cpu'],
-                       help='Device to use')
+    parser.add_argument(
+        '--device',
+        type=device_type,
+        default='auto',
+        help='Device to use (auto, cpu, cuda, or cuda:N)'
+    )
+    parser.add_argument('--eval-every', type=int, default=5,
+                       help='Run eval every N epochs')
+    parser.add_argument('--num-workers', type=int, default=4,
+                       help='Number of dataloader workers')
 
     # Special modes
     parser.add_argument('--table1', action='store_true',
                        help='Run all Table 1 configurations (ResNet only)')
     parser.add_argument('--dry-run', action='store_true',
                        help='Print configuration without training')
+    parser.add_argument('--compile-model', action='store_false',
+                       help='Compile model with torch.compile')
 
     return parser.parse_args()
 
@@ -226,9 +243,10 @@ def create_config_from_args(args) -> UnifiedConfig:
             frozen=args.frozen,
             use_tversky=args.use_tversky,
             data_dir=args.data_dir,
-            num_workers=4
+            compile_model=args.compile_model,
+            num_workers=args.num_workers,
+            eval_every=args.eval_every,
         )
-
     else:
         raise ValueError(f"Model type {args.model_type} not supported yet")
 

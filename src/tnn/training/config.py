@@ -59,6 +59,7 @@ class UnifiedConfig:
     num_workers: int = 4
     eval_every: int = 5  # Evaluate every N epochs
     save_checkpoints: bool = True
+    compile_model: bool = False
 
     # Common Tversky settings
     tversky: Optional[TverskyConfig] = None
