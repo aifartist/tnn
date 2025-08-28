@@ -14,38 +14,38 @@ from pathlib import Path
 def download_nabirds(dataset_dir: str = "./datasets", force: bool = False):
     """
     Download NABirds dataset to local directory
-    
+
     Args:
         dataset_dir: Base directory to store datasets
         force: Whether to re-download if dataset already exists
     """
-    
+
     print("🦅 NABirds Dataset Downloader")
     print("=" * 50)
-    
+
     try:
         import deeplake
         print("✅ Deeplake import successful")
     except ImportError:
         print("❌ Deeplake not found. Please install with: pip install 'deeplake<4'")
         sys.exit(1)
-    
+
     # Create dataset directory structure
     nabirds_dir = Path(dataset_dir) / "nabirds"
     train_dir = nabirds_dir / "train"
     val_dir = nabirds_dir / "val"
-    
+
     # Check if dataset already exists
     if train_dir.exists() and val_dir.exists() and not force:
         print(f"✅ NABirds dataset already exists in {nabirds_dir}")
         print("   Use --force to re-download")
         print_dataset_info(nabirds_dir)
         return str(nabirds_dir)
-    
+
     # Create directories
     nabirds_dir.mkdir(parents=True, exist_ok=True)
     print(f"📁 Created dataset directory: {nabirds_dir}")
-    
+
     # Download train split
     print("\n📥 Downloading NABirds training set...")
     try:
@@ -57,7 +57,7 @@ def download_nabirds(dataset_dir: str = "./datasets", force: bool = False):
     except Exception as e:
         print(f"❌ Error downloading training set: {e}")
         return None
-    
+
     # Download validation split
     print("\n📥 Downloading NABirds validation set...")
     try:
@@ -69,12 +69,12 @@ def download_nabirds(dataset_dir: str = "./datasets", force: bool = False):
     except Exception as e:
         print(f"❌ Error downloading validation set: {e}")
         return None
-    
+
     create_dataset_info(nabirds_dir, train_ds, val_ds)
-    
+
     print("\n🎉 NABirds dataset download complete!")
     print_dataset_info(nabirds_dir)
-    
+
     return str(nabirds_dir)
 
 def create_dataset_info(dataset_dir: Path, train_ds, val_ds):
@@ -97,24 +97,24 @@ def create_dataset_info(dataset_dir: Path, train_ds, val_ds):
   year={2015}
 }"""
     }
-    
+
     import json
     info_file = dataset_dir / "dataset_info.json"
     with open(info_file, 'w') as f:
         json.dump(info, f, indent=2)
-    
+
     print(f"📄 Dataset info saved to {info_file}")
 
 def print_dataset_info(dataset_dir: Path):
     """Print information about the downloaded dataset"""
     train_dir = dataset_dir / "train"
     val_dir = dataset_dir / "val"
-    
+
     print(f"\n📊 Dataset Information:")
     print(f"   Location: {dataset_dir}")
     print(f"   Training set: {train_dir}")
     print(f"   Validation set: {val_dir}")
-    
+
     # Check sizes
     if train_dir.exists():
         try:
@@ -123,7 +123,7 @@ def print_dataset_info(dataset_dir: Path):
             print(f"   Train samples: {len(train_ds)}")
         except:
             print(f"   Train samples: Available")
-    
+
     if val_dir.exists():
         try:
             import deeplake
@@ -131,7 +131,7 @@ def print_dataset_info(dataset_dir: Path):
             print(f"   Val samples: {len(val_ds)}")
         except:
             print(f"   Val samples: Available")
-    
+
     print(f"\n🚀 Ready to use with:")
     print(f"   python pipeline.py --model-type resnet --dataset nabirds --data-dir {dataset_dir}")
 
@@ -143,32 +143,32 @@ def main():
 Examples:
   # Download to default ./datasets directory
   python download_nabirds.py
-  
+
   # Download to custom directory
   python download_nabirds.py --dataset-dir /path/to/datasets
-  
+
   # Force re-download
   python download_nabirds.py --force
 """
     )
-    
+
     parser.add_argument(
-        '--dataset-dir', 
+        '--dataset-dir',
         default='./datasets',
         help='Directory to store the dataset (default: ./datasets)'
     )
-    
+
     parser.add_argument(
-        '--force', 
+        '--force',
         action='store_true',
         help='Force re-download even if dataset exists'
     )
-    
+
     args = parser.parse_args()
-    
+
     # Download dataset
     result = download_nabirds(args.dataset_dir, args.force)
-    
+
     if result:
         print(f"\n✅ Download successful! Dataset ready at: {result}")
         sys.exit(0)

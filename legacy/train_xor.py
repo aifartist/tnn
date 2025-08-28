@@ -18,9 +18,9 @@ def main():
     parser.add_argument('--alpha', type=float, default=0.5, help='Tversky alpha parameter')
     parser.add_argument('--beta', type=float, default=0.5, help='Tversky beta parameter')
     parser.add_argument('--no-plots', action='store_true', help='Skip plotting')
-    
+
     args = parser.parse_args()
-    
+
     # Build pipeline.py command
     cmd = [
         sys.executable, 'pipeline.py',
@@ -33,13 +33,13 @@ def main():
         '--xor-samples', str(args.samples),
         '--xor-hidden-dim', str(args.hidden_dim),
     ]
-    
+
     if args.no_plots:
         cmd.append('--no-plots')
-    
+
     print("🔄 Running unified pipeline for XOR training...")
     print(f"Command: {' '.join(cmd)}")
-    
+
     # Execute pipeline
     result = subprocess.run(cmd)
     sys.exit(result.returncode)

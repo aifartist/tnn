@@ -17,17 +17,17 @@ def get_transforms(
 ) -> Tuple[transforms.Compose, transforms.Compose]:
     """
     Get train and validation transforms for different scenarios
-    
+
     Args:
         dataset: Dataset name ('mnist' or 'nabirds')
         frozen: Whether backbone is frozen (affects augmentation strategy)
         pretrained: Whether using pretrained weights (affects normalization)
         image_size: Target image size for ResNet (default: 224)
-        
+
     Returns:
         Tuple of (train_transform, val_transform)
     """
-    
+
     # Choose normalization statistics
     if pretrained:
         normalize = transforms.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD)
@@ -37,14 +37,14 @@ def get_transforms(
             normalize = transforms.Normalize(mean=[0.1307], std=[0.3081])
         else:  # nabirds or other
             normalize = transforms.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD)
-    
+
     # Base transforms for all datasets
     base_transforms = [
         transforms.Resize((image_size, image_size)),
         transforms.ToTensor(),
         normalize
     ]
-    
+
     if frozen:
         # Minimal augmentation for frozen backbone
         train_transforms = transforms.Compose([
@@ -75,10 +75,10 @@ def get_transforms(
                 transforms.ToTensor(),
                 normalize
             ])
-    
+
     # Validation transforms (no augmentation)
     val_transforms = transforms.Compose(base_transforms)
-    
+
     return train_transforms, val_transforms
 
 

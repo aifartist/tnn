@@ -11,12 +11,12 @@ def test_nabirds_dataset():
     """Test NABirds dataset loading"""
     print("🧪 Testing NABirds Dataset Integration with Deeplake")
     print("=" * 60)
-    
+
     try:
         # Test basic import
         from tnn.datasets import get_nabirds_loaders
         print("✅ Successfully imported NABirds dataset loader")
-        
+
         # Test dataset loading with dummy data (fallback)
         print("\n📦 Testing dataset loading...")
         train_loader, val_loader, test_loader = get_nabirds_loaders(
@@ -25,7 +25,7 @@ def test_nabirds_dataset():
             use_local=False  # Stream from hub
         )
         print("✅ Successfully created data loaders")
-        
+
         # Test data loading
         print("\n🔄 Testing data loading...")
         for i, (images, labels) in enumerate(train_loader):
@@ -35,17 +35,17 @@ def test_nabirds_dataset():
             print(f"    Image dtype: {images.dtype}")
             print(f"    Labels dtype: {labels.dtype}")
             print(f"    Label range: {labels.min()} - {labels.max()}")
-            
+
             if i >= 2:  # Test first 3 batches
                 break
-        
+
         print("✅ Data loading test successful!")
-        
+
         print("\n📊 Dataset Statistics:")
         print(f"  Train batches: {len(train_loader)}")
         print(f"  Val batches: {len(val_loader)}")
         print(f"  Test batches: {len(test_loader)}")
-        
+
         # Test local caching option
         print("\n💾 Testing local caching option...")
         cached_train_loader, _, _ = get_nabirds_loaders(
@@ -55,9 +55,9 @@ def test_nabirds_dataset():
             data_dir='./temp_cache'
         )
         print("✅ Local caching option works!")
-        
+
         return True
-        
+
     except Exception as e:
         print(f"❌ Error: {e}")
         import traceback

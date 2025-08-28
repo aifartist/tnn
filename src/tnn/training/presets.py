@@ -6,7 +6,7 @@ from tnn.training.config import UnifiedConfig, XORConfig, TverskyConfig
 
 class Presets:
     """Common preset configurations for TNN experiments"""
-    
+
     @staticmethod
     def xor_quick() -> UnifiedConfig:
         """Quick XOR test (fast convergence)"""
@@ -18,7 +18,7 @@ class Presets:
             tversky=TverskyConfig(num_prototypes=4, alpha=0.5, beta=0.5),
             xor_config=XORConfig(n_samples=500, test_samples=100, hidden_dim=8)
         )
-    
+
     @staticmethod
     def xor_paper() -> UnifiedConfig:
         """XOR configuration matching paper settings"""
@@ -30,7 +30,7 @@ class Presets:
             tversky=TverskyConfig(num_prototypes=4, alpha=0.5, beta=0.5),
             xor_config=XORConfig(n_samples=1000, test_samples=200, hidden_dim=8)
         )
-    
+
     @staticmethod
     def resnet_mnist_quick() -> UnifiedConfig:
         """Quick ResNet MNIST test"""
@@ -47,7 +47,7 @@ class Presets:
             use_tversky=True,
             tversky=TverskyConfig(num_prototypes=8, alpha=0.5, beta=0.5)
         )
-    
+
     @staticmethod
     def resnet_mnist_paper() -> UnifiedConfig:
         """ResNet MNIST configuration for paper reproduction"""
@@ -64,7 +64,7 @@ class Presets:
             use_tversky=True,
             tversky=TverskyConfig(num_prototypes=8, alpha=0.5, beta=0.5)
         )
-    
+
     @staticmethod
     def resnet_nabirds_paper() -> UnifiedConfig:
         """ResNet NABirds configuration for paper reproduction"""
@@ -81,14 +81,14 @@ class Presets:
             use_tversky=True,
             tversky=TverskyConfig(num_prototypes=16, alpha=0.5, beta=0.5)
         )
-    
+
     @staticmethod
     def table1_mnist(architecture: Literal['resnet18', 'resnet50', 'resnet101', 'resnet152'] = 'resnet18') -> list[UnifiedConfig]:
         """Generate all Table 1 configurations for MNIST"""
         configs = []
-        
+
         base_tversky = TverskyConfig(num_prototypes=8, alpha=0.5, beta=0.5)
-        
+
         # All combinations from paper's Table 1
         combinations = [
             (True, True, True, "pretrained_frozen_tversky"),
@@ -98,7 +98,7 @@ class Presets:
             (False, False, True, "scratch_unfrozen_tversky"),
             (False, False, False, "scratch_unfrozen_linear"),
         ]
-        
+
         for pretrained, frozen, use_tversky, desc in combinations:
             config = UnifiedConfig(
                 model_type='resnet',
@@ -114,9 +114,9 @@ class Presets:
                 tversky=base_tversky
             )
             configs.append(config)
-        
+
         return configs
-    
+
     @staticmethod
     def get_preset(name: str) -> UnifiedConfig:
         """Get preset configuration by name"""
@@ -127,9 +127,9 @@ class Presets:
             'resnet_mnist_paper': Presets.resnet_mnist_paper,
             'resnet_nabirds_paper': Presets.resnet_nabirds_paper,
         }
-        
+
         if name not in presets:
             available = ', '.join(presets.keys())
             raise ValueError(f"Unknown preset '{name}'. Available presets: {available}")
-        
+
         return presets[name]()

@@ -33,12 +33,12 @@ class XORConfig:
 @dataclass
 class UnifiedConfig:
     """Unified configuration for all TNN model types"""
-    
+
     # Core experiment settings
     model_type: Literal['xor', 'resnet', 'gpt2'] = 'xor'
     experiment_name: str = "tnn_experiment"
     run_name: Optional[str] = None
-    
+
     # Common training settings
     epochs: int = 50
     learning_rate: float = 0.01
@@ -48,7 +48,7 @@ class UnifiedConfig:
     scheduler: Literal['none', 'cosine', 'step', 'plateau'] = 'cosine'
     scheduler_params: Optional[Dict[str, Any]] = None
     momentum: float = 0.9  # For SGD
-    
+
     # ResNet-specific settings (previously in ExperimentConfig)
     architecture: Literal['resnet18', 'resnet50', 'resnet101', 'resnet152'] = 'resnet18'
     pretrained: bool = True
@@ -59,32 +59,32 @@ class UnifiedConfig:
     num_workers: int = 4
     eval_every: int = 5  # Evaluate every N epochs
     save_checkpoints: bool = True
-    
+
     # Common Tversky settings
     tversky: Optional[TverskyConfig] = None
-    
+
     # Hardware and logging
     device: str = 'auto'
     checkpoint_dir: str = './checkpoints'
     results_dir: str = './results'
     mixed_precision: bool = True
     seed: int = 42
-    
+
     # Model-specific configurations (only XOR now, ResNet params are now direct)
     xor_config: Optional[XORConfig] = None
-    
+
     def __post_init__(self):
         """Post-initialization setup"""
         if self.tversky is None:
             self.tversky = TverskyConfig()
-            
+
         if self.run_name is None:
             self.run_name = self._generate_run_name()
-            
+
         # Initialize XOR config if needed
         if self.model_type == 'xor' and self.xor_config is None:
             self.xor_config = XORConfig()
-            
+
         # Set up scheduler parameters
         if self.scheduler_params is None:
             if self.scheduler == 'cosine':
@@ -93,7 +93,7 @@ class UnifiedConfig:
                 self.scheduler_params = {'step_size': self.epochs // 3, 'gamma': 0.1}
             else:
                 self.scheduler_params = {}
-    
+
     def _generate_run_name(self) -> str:
         """Generate a descriptive run name"""
         if self.model_type == 'xor':
@@ -110,7 +110,7 @@ class UnifiedConfig:
             return "_".join(components)
         else:
             return f"{self.model_type}_experiment"
-    
+
     def get_num_classes(self) -> int:
         """Get number of classes for the dataset"""
         if self.dataset == 'mnist':
@@ -119,7 +119,7 @@ class UnifiedConfig:
             return 1011  # NABirds has 1011 classes (400 species but 1011 visual categories)
         else:
             raise ValueError(f"Unknown dataset: {self.dataset}")
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert config to dictionary for logging"""
         config_dict = {}
