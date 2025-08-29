@@ -54,7 +54,7 @@ class ResNetTrainer:
         # Setup mixed precision if available
         self.scaler = None
         if config.mixed_precision and torch.cuda.is_available():
-            self.scaler = torch.cuda.amp.GradScaler()
+            self.scaler = torch.amp.GradScaler(self.config.device)
 
         # Create checkpoint directory
         os.makedirs(config.checkpoint_dir, exist_ok=True)
@@ -211,13 +211,13 @@ class ResNetTrainer:
         pbar = tqdm(self.train_loader, desc="Training")
 
         for batch_idx, (data, target) in enumerate(pbar):
-            data, target = data.to(self.device), target.to(self.device)
+            data, target = data.to(self.device, non_blocking=True), target.to(self.device, non_blocking=True)
 
             self.optimizer.zero_grad()
 
             if self.scaler:
                 # Mixed precision training
-                with torch.cuda.amp.autocast():
+                with torch.amp.autocast(self.config.device):
                     output = self.model(data)
                     loss = self.criterion(output, target)
 
@@ -258,7 +258,7 @@ class ResNetTrainer:
                 data, target = data.to(self.device), target.to(self.device)
 
                 if self.scaler:
-                    with torch.cuda.amp.autocast():
+                    with torch.amp.autocast(self.config.device):
                         output = self.model(data)
                         loss = self.criterion(output, target)
                 else:
@@ -285,7 +285,8 @@ class ResNetTrainer:
 
             # Validate
             val_metrics = None
-            if (epoch + 1) % self.config.eval_every == 0 or epoch == self.config.epochs - 1:
+            # Skip the last validation as it'll be done later
+            if (epoch + 1) % self.config.eval_every == 0 and epoch + 1 != self.config.epochs:
                 val_metrics = self.validate()
 
                 # Check for best model
@@ -315,11 +316,10 @@ class ResNetTrainer:
                 print(f"  Val:   Loss={val_metrics['loss']:.4f}, Acc={val_metrics['accuracy']:.4f}")
             print()
 
-        total_time = time.time() - start_time
-        print(f"Training completed in {total_time:.1f}s")
-
-        # Final evaluation
         final_results = self.evaluate_final()
+
+        total_time = time.time() - start_time
+        print(f"\nTraining completed in {total_time:.1f}s")
 
         return {
             'config': self.config.to_dict(),
@@ -347,7 +347,7 @@ class ResNetTrainer:
                     data, target = data.to(self.device), target.to(self.device)
 
                     if self.scaler:
-                        with torch.cuda.amp.autocast():
+                        with torch.amp.autocast(self.config.device):
                             output = self.model(data)
                             loss = self.criterion(output, target)
                     else:

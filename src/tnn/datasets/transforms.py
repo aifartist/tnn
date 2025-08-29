@@ -66,6 +66,8 @@ def get_transforms(
             ])
         else:
             # NABirds and other natural image datasets
+            # TODO: See if v2 transforms are faster
+            #import torchvision.transforms.v2 as T
             train_transforms = transforms.Compose([
                 transforms.Resize((int(image_size * 1.14), int(image_size * 1.14))),  # 256 for 224
                 transforms.RandomCrop(image_size),

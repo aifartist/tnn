@@ -4,13 +4,14 @@ Unified Training Pipeline for Tversky Neural Networks
 Supports XOR toy problems, ResNet image classification, and future GPT-2 experiments
 """
 
-import torch
-import argparse
-import os
-import json
 import sys
-from datetime import datetime
+import os
 from typing import Dict, Any, List
+from datetime import datetime
+
+import argparse
+import json
+import torch
 
 # Import from installed tnn package
 from tnn.training import (
@@ -449,8 +450,15 @@ def main():
             print(f"\n🎉 Training completed! Final accuracy: {final_acc:.4f}")
         elif config.model_type == 'resnet':
             final_results = results.get('final_results', {})
+
+            val_loss = final_results.get('validation', {}).get('loss', 0)
             val_acc = final_results.get('validation', {}).get('accuracy', 0)
-            print(f"\n🎉 Training completed! Final validation accuracy: {val_acc:.4f}")
+            print(f"Final validation:  Loss={val_loss:.4f}, Acc={val_acc:.4f}")
+
+            if False: # Apparently datasets.activeloop.ai doesn't have 'test'
+                test_loss = final_results.get('test', {}).get('loss', 0)
+                test_acc = final_results.get('test', {}).get('accuracy', 0)
+                print(f"Final test:  Loss={test_loss:.4f}, Acc={test_acc:.4f}")
 
         save_results(results, config, args)
 

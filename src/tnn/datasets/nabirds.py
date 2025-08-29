@@ -224,6 +224,9 @@ def get_nabirds_loaders(
         Tuple of (train_loader, val_loader, test_loader)
     """
 
+    # The data source for NABirds being used here doesn't have the test dataset
+    TestDSExists = False
+
     # Get transforms
     train_transform, val_transform = get_nabirds_transforms(frozen, pretrained, image_size)
 
@@ -248,12 +251,15 @@ def get_nabirds_loaders(
             transform=val_transform
         )
 
-        test_dataset = NABirdsDataset(
-            split='val',
-            cache_dir=data_dir,
-            use_local=True,
-            transform=val_transform
-        )
+        if TestDSExists:
+            test_dataset = NABirdsDataset(
+                split='test',
+                cache_dir=data_dir,
+                use_local=True,
+                transform=val_transform
+            )
+        else:
+            test_dataset = None
     else:
         if use_local:
             print(f"Local NABirds dataset not found at {data_dir}")
@@ -275,12 +281,15 @@ def get_nabirds_loaders(
             use_local=False
         )
 
-        test_dataset = NABirdsDataset(
-            split='val',
-            transform=val_transform,
-            cache_dir=None,
-            use_local=False
-        )
+        if TestDSExists:
+            test_dataset = NABirdsDataset(
+                split='test',
+                transform=val_transform,
+                cache_dir=None,
+                use_local=False
+            )
+        else:
+            test_dataset = None
 
     # Create data loaders
     train_loader = DataLoader(
@@ -288,7 +297,11 @@ def get_nabirds_loaders(
         batch_size=batch_size,
         shuffle=True,
         num_workers=num_workers,
-        pin_memory=pin_memory
+        pin_memory=pin_memory,
+        # The data augmentation transform is heavy enough that
+        # having 32 workers got me peak performance. However, the
+        # delay of starting/stopping them on each epoch was slow.
+        persistent_workers=True,
     )
 
     val_loader = DataLoader(
@@ -296,21 +309,26 @@ def get_nabirds_loaders(
         batch_size=batch_size,
         shuffle=False,
         num_workers=num_workers,
-        pin_memory=pin_memory
+        pin_memory=pin_memory,
+        persistent_workers=True,
     )
 
-    test_loader = DataLoader(
-        test_dataset,
-        batch_size=batch_size,
-        shuffle=False,
-        num_workers=num_workers,
-        pin_memory=pin_memory
-    )
+    if TestDSExists:
+        test_loader = DataLoader(
+            test_dataset,
+            batch_size=batch_size,
+            shuffle=False,
+            num_workers=num_workers,
+            pin_memory=pin_memory
+        )
+    else:
+        test_loader = None
 
     print(f"NABirds Dataset loaded using Deeplake:")
     print(f"  Train: {len(train_dataset)} samples")
     print(f"  Val: {len(val_dataset)} samples")
-    print(f"  Test: {len(test_dataset)} samples")
+    if TestDSExists:
+        print(f"  Test: {len(test_dataset)} samples")
     print(f"  Classes: {getattr(train_dataset, 'num_classes', 'Unknown')}")
     print(f"  Batch size: {batch_size}")
     print(f"  Image size: {image_size}x{image_size}")
